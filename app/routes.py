@@ -3,6 +3,8 @@ from config.manager import AppConfig, ClusterConfig, GitAuthConfig, load_app_con
 from core.checker import analyze_prs, AnalysisResult, PRData, PRCheckDetail # Added PRCheckDetail
 from typing import List, cast, Dict, Optional, Literal
 from datetime import datetime
+from app.clear_cache import clear_cache
+from flask import jsonify
 
 bp = Blueprint('main', __name__)
 
@@ -122,3 +124,12 @@ def check_pr_page():
                            pr_number_input=pr_number_input,
                            configured_clusters=app_config.get('clusters', []),
                            app_config=app_config)
+
+@bp.route('/clear_cache', methods=['POST'])
+def clear_cache_route():
+    try:
+        clear_cache()
+        flash('Cache cleared successfully!', 'success')
+    except Exception as e:
+        flash(f'Error clearing cache: {e}', 'error')
+    return redirect(url_for('main.dashboard'))

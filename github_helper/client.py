@@ -134,9 +134,36 @@ def make_github_request(method, url, params=None, json_data=None):
         text = response.text if response is not None else "N/A"
         raise GitHubAPIError(f"JSON decode error: {e}. Status: {status_code}. Text: {text}", status_code)
 
+def repo_and_branch_exist(owner: str, repo_name: str, branch: str) -> bool:
+    """Check if the repository and branch exist on GitHub."""
+    repo_url = urljoin(GITHUB_API_URL, f"repos/{owner}/{repo_name}")
+    branch_url = urljoin(repo_url + '/', f"branches/{branch}")
+    try:
+        # Check repo
+        response, status = make_github_request("GET", repo_url)
+        if status != 200:
+            print(f"Repository {owner}/{repo_name} not found (status {status}).")
+            return False
+        # Check branch
+        response, status = make_github_request("GET", branch_url)
+        if status != 200:
+            print(f"Branch '{branch}' not found in {owner}/{repo_name} (status {status}).")
+            return False
+        return True
+    except GitHubAPIError as e:
+        print(f"Error checking repo/branch existence: {e}")
+        return False
+
 def get_prs_in_date_range(repo_url: str, main_branch: str, from_date: Optional[str], to_date: Optional[str]) -> Dict[int, PRData]:
     if not repo_url or not main_branch: raise ValueError("Repo URL and main branch needed.")
-    path_parts = repo_url.strip('/').split('/'); owner = path_parts[-2]; repo_name = path_parts[-1].replace('.git', '')
+    path_parts = repo_url.strip('/').split('/')
+    owner = path_parts[-2]
+    repo_name = path_parts[-1].replace('.git', '')
+    print(f"[DEBUG] Parsed owner: {owner}, repo_name: {repo_name}, main_branch: {main_branch}")
+    # Check repo and branch existence before querying
+    if not repo_and_branch_exist(owner, repo_name, main_branch):
+        print(f"Error: Repository '{owner}/{repo_name}' or branch '{main_branch}' does not exist.")
+        return {}
     query_parts = [f"repo:{owner}/{repo_name}", "is:pr", "is:merged", f"base:{main_branch}"]
     merged_date_filter = ""
     if from_date and to_date: merged_date_filter = f"merged:{from_date}..{to_date}"
@@ -144,6 +171,7 @@ def get_prs_in_date_range(repo_url: str, main_branch: str, from_date: Optional[s
     elif to_date: merged_date_filter = f"merged:<={to_date}"
     if merged_date_filter: query_parts.append(merged_date_filter)
     query = " ".join(query_parts)
+    print(f"[DEBUG] GitHub search query: {query}")
     query_cache_key = hashlib.md5(query.encode()).hexdigest()
     cached_prs = load_prs_from_cache(query_cache_key)
     if cached_prs is not None: print(f"Loaded {len(cached_prs)} PRs from cache for query: {query}"); return cached_prs
@@ -151,6 +179,7 @@ def get_prs_in_date_range(repo_url: str, main_branch: str, from_date: Optional[s
     print(f"Fetching PRs from API with query: {query}"); per_page = 100
     while True:
         params = {"q": query, "sort": "merged", "order": "desc", "per_page": str(per_page), "page": str(page)}
+        print(f"[DEBUG] Requesting page {page} with params: {params}")
         try:
             response_data, status_code = make_github_request("GET", search_url, params=params)
             if status_code == 200 and response_data:
@@ -160,7 +189,11 @@ def get_prs_in_date_range(repo_url: str, main_branch: str, from_date: Optional[s
                     break
                 page += 1
             else: print(f"Failed to fetch PRs (page {page}) query '{query}'. Status: {status_code}"); break
-        except GitHubAPIError as e: print(f"API error during PR fetch (page {page}): {e}"); break
+        except GitHubAPIError as e:
+            if e.status_code == 422:
+                print(f"API error 422: Unprocessable Entity. This usually means the repository, branch, or date range is invalid, or there are no PRs matching the criteria. Query: {query}")
+                break
+            print(f"API error during PR fetch (page {page}): {e}"); break
     processed_prs: Dict[int, PRData] = {}
     for item in all_pr_items:
         pr_number = item.get("number")

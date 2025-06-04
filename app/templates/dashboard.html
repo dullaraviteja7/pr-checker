@@ -40,6 +40,9 @@
             </select>
             <button type="submit">Apply Filters</button>
         </form>
+        <form method="POST" action="{{ url_for('main.clear_cache_route') }}" style="display:inline; float:right;">
+            <button type="submit" style="background-color:#dc3545; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Clear Cache</button>
+        </form>
         {% if results %}
             {% for cluster_name_res, pr_list_res in results.items() %}
             <div class="cluster-section">
