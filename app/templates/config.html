@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration - PR Cluster Checker</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], input[type="url"], input[type="password"], input[type="date"], select {
+            width: calc(100% - 22px); padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+        }
+        .cluster-entry { border: 1px solid #eee; padding: 10px; margin-top: 10px; border-radius: 4px; }
+        .cluster-entry label { font-weight: normal; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        .remove-cluster { background-color: #dc3545; margin-left:10px; }
+        .remove-cluster:hover { background-color: #c82333; }
+        .flash-message { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .flash-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .credential-notes { font-size: 0.9em; color: #555; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configure PR Cluster Checker</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <form method="POST">
+            <h2>Git Repository Details</h2>
+            <label for="git_repo_url">Git Repository URL:</label>
+            <input type="url" id="git_repo_url" name="git_repo_url" value="{{ config.git_repo_url or '' }}" required>
+            <label for="auth_method">Authentication Method:</label>
+            <select id="auth_method" name="auth_method">
+                <option value="">Select a method</option>
+                <option value="pat" {% if config.auth_config and config.auth_config.method == 'pat' %}selected{% endif %}>Personal Access Token (PAT)</option>
+                <option value="userpass" {% if config.auth_config and config.auth_config.method == 'userpass' %}selected{% endif %}>Username/Password</option>
+            </select>
+            <p class="credential-notes">
+                <strong>Note:</strong> Actual credentials are NOT stored in the configuration file. <br>
+                - For <strong>PAT</strong>, set the <code>GITHUB_TOKEN</code> environment variable. <br>
+                - For <strong>Username/Password</strong>, set <code>GITHUB_USERNAME</code> and <code>GITHUB_PASSWORD</code> environment variables.
+            </p>
+            <div id="auth_username_field" style="display: {% if config.auth_config and config.auth_config.method == 'userpass' %}block{% else %}none{% endif %};">
+                <label for="github_username">GitHub Username (for reference):</label>
+                <input type="text" id="github_username" name="github_username" value="{{ config.auth_config.username or '' }}">
+                 <p class="credential-notes">This username is stored for reference only. The password must be in <code>GITHUB_PASSWORD</code> environment variable.</p>
+            </div>
+            <h2>Branch Setup</h2>
+            <label for="main_release_branch">Main Release Branch Name:</label>
+            <input type="text" id="main_release_branch" name="main_release_branch" value="{{ config.main_release_branch or '' }}" required placeholder="e.g., ENH-83-RC-1">
+            <h3>Cluster Branches</h3>
+            <div id="clusters-container">
+                {% if config.clusters %}
+                    {% for cluster in config.clusters %}
+                    <div class="cluster-entry">
+                        <label for="cluster_name_{{ loop.index0 }}">Cluster Name:</label>
+                        <input type="text" name="cluster_names" value="{{ cluster.name }}" placeholder="e.g., smi" required>
+                        <label for="cluster_branch_{{ loop.index0 }}">Corresponding Release Branch:</label>
+                        <input type="text" name="cluster_branches" value="{{ cluster.release_branch }}" placeholder="e.g., ENH.83.RC.1.0604-smi" required>
+                        <button type="button" class="remove-cluster" onclick="removeCluster(this)">Remove</button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="cluster-entry">
+                        <label for="cluster_name_0">Cluster Name:</label>
+                        <input type="text" name="cluster_names" placeholder="e.g., smi" required>
+                        <label for="cluster_branch_0">Corresponding Release Branch:</label>
+                        <input type="text" name="cluster_branches" placeholder="e.g., ENH.83.RC.1.0604-smi" required>
+                        <button type="button" class="remove-cluster" onclick="removeCluster(this)">Remove</button>
+                    </div>
+                {% endif %}
+            </div>
+            <button type="button" id="add-cluster">Add Cluster</button>
+            <h2>Date Range for PRs</h2>
+            <label for="date_from">From Date:</label>
+            <input type="date" id="date_from" name="date_from" value="{{ config.date_range_from or '' }}">
+            <label for="date_to">To Date:</label>
+            <input type="date" id="date_to" name="date_to" value="{{ config.date_range_to or '' }}">
+            <button type="submit">Save Configuration</button>
+        </form>
+    </div>
+    <script>
+        document.getElementById('add-cluster').addEventListener('click', function() {
+            const container = document.getElementById('clusters-container');
+            const newIndex = container.getElementsByClassName('cluster-entry').length;
+            const newClusterEntry = document.createElement('div');
+            newClusterEntry.className = 'cluster-entry';
+            newClusterEntry.innerHTML = `
+                <label for="cluster_name_${newIndex}">Cluster Name:</label>
+                <input type="text" name="cluster_names" placeholder="e.g., smc" required>
+                <label for="cluster_branch_${newIndex}">Corresponding Release Branch:</label>
+                <input type="text" name="cluster_branches" placeholder="e.g., ENH.83.RC.1.0604-smc" required>
+                <button type="button" class="remove-cluster" onclick="removeCluster(this)">Remove</button>
+            `;
+            container.appendChild(newClusterEntry);
+        });
+        function removeCluster(button) {
+            const clusterEntry = button.parentElement;
+            clusterEntry.remove();
+        }
+        document.getElementById('auth_method').addEventListener('change', function() {
+            const usernameField = document.getElementById('auth_username_field');
+            if (this.value === 'userpass') {
+                usernameField.style.display = 'block';
+            } else {
+                usernameField.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
