@@ -20,6 +20,7 @@ It aims to prevent accidental omissions of critical PRs from cluster deployments
     - Provides filters for:
         - Date range (overrides the global config date range for the current view).
         - Specific cluster name.
+    - there is a clear cache button
 - **PR Checker Page (`/check_pr`)**:
     - Allows a user to input a specific PR number.
     - Shows:
