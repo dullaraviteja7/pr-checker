@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - PR Cluster Checker</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; } nav { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+        nav a { margin-right: 15px; text-decoration: none; color: #007bff; font-weight: bold;} nav a:hover { text-decoration: underline; }
+        .filter-form { margin-bottom: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .filter-form label { margin-right: 5px; font-weight: bold;}
+        .filter-form input[type="date"], .filter-form select, .filter-form button { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .filter-form button { background-color: #007bff; color: white; cursor: pointer; } .filter-form button:hover { background-color: #0056b3; }
+        .cluster-section { margin-bottom: 20px; } .cluster-title { font-size: 1.5em; color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 5px; margin-bottom: 10px;}
+        .pr-list { list-style: none; padding-left: 0; }
+        .pr-item { background-color: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 4px; }
+        .pr-item a { text-decoration: none; color: #007bff; } .pr-item .pr-title-link { font-weight: bold; }
+        .pr-item .missing-marker { color: #dc3545; font-weight: bold; } .no-missing { color: #28a745; }
+        .flash-message { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .flash-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .pr-details { font-size: 0.9em; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav><a href="{{ url_for('main.dashboard') }}">Dashboard</a> <a href="{{ url_for('main.configure') }}">Configuration</a></nav>
+        <h1>Dashboard: Missing Cherry-Picks</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+        {% endwith %}
+        <form method="GET" action="{{ url_for('main.dashboard') }}" class="filter-form">
+            <label for="date_from">From:</label><input type="date" id="date_from" name="date_from" value="{{ current_filters.date_from }}">
+            <label for="date_to">To:</label><input type="date" id="date_to" name="date_to" value="{{ current_filters.date_to }}">
+            <label for="filter_cluster_name">Cluster:</label>
+            <select id="filter_cluster_name" name="filter_cluster_name">
+                <option value="">All Configured Clusters</option>
+                {% for cn_iter in configured_clusters %}<option value="{{ cn_iter }}" {% if current_filters.cluster_name == cn_iter %}selected{% endif %}>{{ cn_iter }}</option>{% endfor %}
+            </select>
+            <button type="submit">Apply Filters</button>
+        </form>
+        {% if results %}
+            {% for cluster_name_res, pr_list_res in results.items() %}
+            <div class="cluster-section">
+                <h2 class="cluster-title">Cluster: {{ cluster_name_res }}
+                    ({% set cluster_conf = app_config.clusters | selectattr('name', 'equalto', cluster_name_res) | first %}{{ cluster_conf.release_branch if cluster_conf else 'N/A' }})</h2>
+                {% if pr_list_res %}<ul class="pr-list">
+                    {% for pr_item_res in pr_list_res %}<li class="pr-item">
+                        <span class="missing-marker">Missing PR:</span> <a href="{{ pr_item_res.html_url }}" target="_blank" class="pr-title-link">#{{ pr_item_res.number }}</a> - {{ pr_item_res.title }}
+                        <div class="pr-details">Merged: {{ pr_item_res.merged_at | replace('T', ' ') | replace('Z', '') if pr_item_res.merged_at else 'N/A' }}
+                            <br>Marked for: {{ pr_item_res.target_clusters | join(', ') if pr_item_res.target_clusters else 'None' }}
+                            <br>Main SHA: {{ pr_item_res.merge_commit_sha or 'N/A' }}</div></li>{% endfor %}</ul>
+                {% else %}<p class="no-missing">No missing cherry-picks found (filters applied).</p>{% endif %}</div>{% endfor %}
+        {% elif current_filters.cluster_name %}
+            <div class="cluster-section"><h2 class="cluster-title">Cluster: {{ current_filters.cluster_name }}</h2>
+            <p class="no-missing">No missing cherry-picks found (filters applied).</p></div>
+        {% else %}<p>No results for current filters, or no clusters configured.</p>{% endif %}
+    </div></body></html>

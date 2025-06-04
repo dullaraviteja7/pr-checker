@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR Checker - PR Cluster Checker</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; } nav { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+        nav a { margin-right: 15px; text-decoration: none; color: #007bff; font-weight: bold; } nav a:hover { text-decoration: underline; }
+        .form-section { margin-bottom: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; display: flex; align-items: center; gap: 10px;}
+        .form-section label { font-weight: bold; }
+        .form-section input[type="text"], .form-section button { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .form-section input[type="text"] { flex-grow: 1; max-width: 200px; }
+        .form-section button { background-color: #007bff; color: white; cursor: pointer; } .form-section button:hover { background-color: #0056b3; }
+        .details-section { margin-top: 20px; } .details-section h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        .detail-item { margin-bottom: 8px; line-height: 1.6; }
+        .detail-item strong { min-width: 250px; display: inline-block; color: #555;}
+        .status-true { color: #28a745; font-weight: bold; } .status-false { color: #dc3545; font-weight: bold; }
+        .flash-message { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .flash-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; } th { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('main.configure') }}">Configuration</a>
+            <a href="{{ url_for('main.check_pr_page') }}">PR Checker</a>
+        </nav>
+        <h1>PR Status Checker</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+        {% endwith %}
+        <div class="form-section">
+            <form method="POST" action="{{ url_for('main.check_pr_page') }}">
+                <label for="pr_number">Enter PR Number:</label>
+                <input type="text" id="pr_number" name="pr_number" value="{{ pr_number_input or '' }}" required pattern="\d+">
+                <button type="submit">Check PR</button>
+            </form>
+        </div>
+        {% if details %}
+        <div class="details-section">
+            <h2>Details for PR <a href="{{ details.pr_html_url or '#' }}" target="_blank">#{{ details.pr_number }}</a></h2>
+            <p class="detail-item"><strong>Title:</strong> {{ details.pr_title or 'N/A' }}</p>
+            <p class="detail-item"><strong>Merged to Main Branch ({{ app_config.main_release_branch if app_config else 'N/A' }}):</strong>
+                <span class="status-{{ 'true' if details.is_merged_to_main else 'false' }}">{{ 'Yes' if details.is_merged_to_main else 'No' }}</span></p>
+            {% if details.is_merged_to_main %}<p class="detail-item"><strong>Main Branch Merge SHA:</strong> {{ details.merge_commit_sha_main or 'N/A' }}</p>{% endif %}
+            <p class="detail-item"><strong>Clusters Marked in PR Body:</strong> {{ details.marked_clusters | join(', ') if details.marked_clusters else 'None specified' }}</p>
+            <h3>Cherry-Pick Status into Cluster Release Branches:</h3>
+            {% if details.is_merged_to_main and details.cherry_pick_status_by_cluster is not none %}
+                {% if configured_clusters %}<table><thead><tr><th>Cluster Name</th><th>Configured Release Branch</th><th>Is PR Present?</th></tr></thead><tbody>
+                    {% for cluster_config in configured_clusters %}{% set cluster_name = cluster_config.name %}{% set status = details.cherry_pick_status_by_cluster.get(cluster_name) %}<tr>
+                            <td>{{ cluster_name }}</td><td>{{ cluster_config.release_branch }}</td>
+                            <td><span class="status-{{ 'true' if status else 'false' }}">{{ 'Yes' if status else ('No' if status is false else 'Status unknown') }}</span></td>
+                        </tr>{% endfor %}</tbody></table>
+                {% else %}<p>No clusters configured.</p>{% endif %}
+            {% elif not details.is_merged_to_main %}<p>PR not merged to main; cherry-pick status not applicable.</p>
+            {% else %}<p>Cherry-pick status not determined or no clusters configured.</p>{% endif %}
+        </div>
+        {% elif request.method == 'POST' and pr_number_input %}<p>No details for PR #{{ pr_number_input }}.</p>{% endif %}
+    </div></body></html>
