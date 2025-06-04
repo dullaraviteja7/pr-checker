@@ -1,0 +1,80 @@
+<div class="container">
+  <h2>PR Checker</h2>
+
+  <div class="checker-form card">
+    <div class="card-body">
+      <div class="form-group">
+        <label for="prNumber">PR Number:</label>
+        <input type="text" id="prNumber" name="prNumber" class="form-control"
+               [(ngModel)]="prNumberInput" placeholder="Enter PR number">
+      </div>
+      <button (click)="onCheckPr()" class="btn btn-primary" [disabled]="isLoading">
+        {{ isLoading ? 'Checking...' : 'Check PR' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-indicator mt-3">
+    <p>Loading PR details...</p>
+  </div>
+
+  <div *ngIf="errorMessage" class="alert alert-danger mt-3">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="!isLoading && prDetails" class="pr-details card mt-3">
+    <div class="card-header">
+      <h3>Details for PR #{{ prDetails.prNumber }}</h3>
+    </div>
+    <div class="card-body">
+      <p><strong>Title:</strong> {{ prDetails.prTitle }}</p>
+      <p><strong>URL:</strong> <a [href]="prDetails.prHtmlUrl" target="_blank">{{ prDetails.prHtmlUrl }}</a></p>
+      <p><strong>Merged to Main Branch ({{ appConfig?.mainReleaseBranch || 'N/A' }}):</strong>
+        <span [ngClass]="{'status-yes': prDetails.isMergedToMain, 'status-no': !prDetails.isMergedToMain}">
+          {{ prDetails.isMergedToMain ? 'Yes' : 'No' }}
+        </span>
+      </p>
+      <p *ngIf="prDetails.isMergedToMain && prDetails.mergeCommitShaMain">
+        <strong>Main Branch Merge Commit SHA:</strong> {{ prDetails.mergeCommitShaMain }}
+      </p>
+
+      <h4>Marked Clusters (from PR Body):</h4>
+      <ul *ngIf="prDetails && prDetails.markedClusters && prDetails.markedClusters.length > 0; else noMarkedClusters">
+        <li *ngFor="let cluster of prDetails.markedClusters">{{ cluster }}</li>
+      </ul>
+      <ng-template #noMarkedClusters><p>No clusters marked in PR body.</p></ng-template>
+
+      <h4>Cherry-pick Status into Configured Clusters:</h4>
+      <table class="table table-bordered table-striped" *ngIf="appConfig && appConfig.clusters && appConfig.clusters.length > 0">
+        <thead>
+          <tr>
+            <th>Configured Cluster Name</th>
+            <th>Release Branch</th>
+            <th>Cherry-pick Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let clusterConfig of appConfig.clusters">
+            <td>{{ clusterConfig.name }}</td>
+            <td>{{ clusterConfig.releaseBranch }}</td>
+            <td>
+              <span *ngIf="!prDetails.isMergedToMain" class="status-na">
+                N/A (PR not merged to main)
+              </span>
+              <span *ngIf="prDetails.isMergedToMain"
+                    [ngClass]="{'status-yes': prDetails.cherryPickStatusByCluster[clusterConfig.name],
+                                'status-no': !prDetails.cherryPickStatusByCluster[clusterConfig.name],
+                                'status-unknown': prDetails.cherryPickStatusByCluster[clusterConfig.name] === undefined || prDetails.cherryPickStatusByCluster[clusterConfig.name] === null}">
+                {{ prDetails.cherryPickStatusByCluster[clusterConfig.name] === true ? 'Present' :
+                   (prDetails.cherryPickStatusByCluster[clusterConfig.name] === false ? 'Missing' : 'Unknown/Not Applicable') }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!appConfig || !appConfig.clusters || appConfig.clusters.length === 0">
+        No clusters configured in the application settings.
+      </p>
+    </div>
+  </div>
+</div>
