@@ -8,13 +8,15 @@ import { AppComponent } from './app.component';
 import { ConfigPageComponent } from './components/config-page/config-page.component';
 import { DashboardPageComponent } from './components/dashboard-page/dashboard-page.component';
 import { PrCheckerPageComponent } from './components/pr-checker-page/pr-checker-page.component';
+import { NavbarComponent } from './components/navbar/navbar.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     ConfigPageComponent,
     DashboardPageComponent,
-    PrCheckerPageComponent
+    PrCheckerPageComponent,
+    NavbarComponent
   ],
   imports: [
     BrowserModule,

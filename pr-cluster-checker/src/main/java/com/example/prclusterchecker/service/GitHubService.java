@@ -102,7 +102,8 @@ public class GitHubService {
         // Python: `re.search(r"cluster:\s*(.*)", pr_body, re.IGNORECASE)`
         // and then `value.split()`
         if (clusters.isEmpty()) {
-            Pattern singleLinePattern = Pattern.compile("cluster:\\s*(.*)", Pattern.CASE_INSENSITIVE);
+            // Enable DOTALL mode so that '.' matches newline characters
+            Pattern singleLinePattern = Pattern.compile("cluster:\\s*(.*)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
             Matcher singleLineMatcher = singleLinePattern.matcher(body);
             if (singleLineMatcher.find()) {
                 String content = singleLineMatcher.group(1).trim();

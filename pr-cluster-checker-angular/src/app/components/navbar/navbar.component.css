@@ -1,0 +1,36 @@
+.navbar {
+  background-color: #333; /* Dark background for the navbar */
+  padding: 0 10px; /* Padding around the ul */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  display: flex; /* Align items in a row */
+  overflow: hidden; /* Clear floats if any, though not needed with flex */
+}
+
+.navbar ul li {
+  /* No specific styling needed for li if using flex on ul for spacing */
+}
+
+.navbar ul li a {
+  display: block;
+  color: white; /* Link text color */
+  text-align: center;
+  padding: 14px 16px; /* Padding for clickable area */
+  text-decoration: none;
+  transition: background-color 0.3s ease; /* Smooth transition for hover */
+}
+
+.navbar ul li a:hover {
+  background-color: #555; /* Darker background on hover */
+}
+
+.navbar ul li a.active-link {
+  background-color: #007bff; /* Blue background for active link */
+  color: white;
+  font-weight: bold;
+}
