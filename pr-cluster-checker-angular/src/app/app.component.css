@@ -1,0 +1,7 @@
+/* General container styling for router outlet content */
+.main-container {
+  padding: 10px 20px; /* Add some padding around the routed content */
+  margin-top: 10px; /* Add some margin below the navbar */
+}
+
+/* You can add more global styles in styles.css if needed */

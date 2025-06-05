@@ -1,165 +1,162 @@
-# PR Cluster Checker
+# PR Cluster Checker (Java & Angular Edition)
 
 ## Purpose
 
-`pr-cluster-checker` is a Python Flask web application designed to help development and release teams verify that pull requests (PRs) marked for specific deployment clusters have been correctly cherry-picked from a main release branch into each required cluster-specific release branch.
+`pr-cluster-checker` is a web application designed to help development and release teams verify that pull requests (PRs) marked for specific deployment clusters have been correctly cherry-picked from a main release branch into each required cluster-specific release branch.
 
-It aims to prevent accidental omissions of critical PRs from cluster deployments.
+This version is a reimplementation of the original concept using a Java Spring Boot backend and an Angular frontend.
 
-## Features
+## Architecture Overview
 
-- **Configuration Page (`/config`)**:
-    - Input Git repository URL.
-    - Specify authentication method (Personal Access Token or Username/Password). Credentials are read from a `.env` file.
-    - Define the main release branch (e.g., `ENH-83-RC-1`).
-    - List cluster names (e.g., `smi`, `smc`) and their corresponding cluster-specific release branch names (e.g., `ENH.83.RC.1.smi-branch`).
-    - Set a date range to filter PRs merged into the main release branch.
-- **Dashboard Page (`/dashboard`)**:
-    - Displays PRs that were merged into the main release branch (within the configured date range) and marked for specific clusters (via a special PR body template) but have NOT been cherry-picked into one or more of their target cluster release branches.
-    - Lists missing PRs under each relevant cluster release branch.
-    - Provides filters for:
-        - Date range (overrides the global config date range for the current view).
-        - Specific cluster name.
-- **PR Checker Page (`/check_pr`)**:
-    - Allows a user to input a specific PR number.
-    - Shows:
-        - Whether the PR is merged into the main release branch.
-        - Its merge commit SHA on the main branch (if merged).
-        - Which clusters were marked for impact in its body.
-        - The cherry-pick status for each configured cluster release branch.
-- **Caching**:
-    - Caches GitHub API responses for PR lists and cherry-pick statuses to improve performance and reduce API rate limit consumption. Cache files are stored in the `data/` directory.
+The application consists of two main parts:
+
+-   **Backend (Java - Spring Boot)**: Provides a REST API for configuration management, GitHub interaction, and PR analysis logic.
+-   **Frontend (Angular)**: A single-page application (SPA) that consumes the backend API to provide a user interface for configuration, viewing dashboard results, and checking individual PRs.
+
+## Backend (Java - Spring Boot)
+
+### Purpose/Features
+
+-   Manages application configuration (Git repository, branches, clusters).
+-   Interacts with the GitHub API to fetch PR data, commit history, and compare branches.
+-   Performs analysis to identify PRs missing from target cluster branches.
+-   Exposes REST endpoints for the frontend.
+-   Includes in-memory caching for GitHub API responses to improve performance.
+
+### Prerequisites
+
+-   Java JDK 17 or newer
+-   Apache Maven 3.6+
+
+### Setup Instructions
+
+1.  **Clone the repository (if applicable).**
+    The backend is located in the root `pr-cluster-checker` directory (or the main project directory).
+
+2.  **Environment Variables for GitHub Authentication:**
+    The application uses environment variables for GitHub authentication. Set these in your operating system or IDE environment:
+    *   **For Personal Access Token (PAT) authentication (Recommended):**
+        ```
+        GITHUB_TOKEN=your_github_personal_access_token_here
+        ```
+        Create a PAT from your GitHub account settings with `repo` scope.
+    *   **For Username/Password authentication (Less Recommended):**
+        ```
+        GITHUB_USERNAME=your_github_username
+        GITHUB_PASSWORD=your_github_password_or_pat
+        ```
+        *Note: If 2FA is enabled, you must use a PAT as the password.*
+
+3.  **Building the Backend:**
+    Navigate to the project root directory (`pr-cluster-checker`) and run:
+    ```bash
+    mvn clean install
+    ```
+    This will compile the code, run tests, and package the application into a JAR file (e.g., `target/pr-cluster-checker-0.0.1-SNAPSHOT.jar`).
+
+4.  **Running the Backend:**
+    You can run the application using:
+    *   `java -jar target/pr-cluster-checker-0.0.1-SNAPSHOT.jar`
+    *   Or, directly via Maven: `mvn spring-boot:run`
+
+5.  **API Port:**
+    The backend API will typically be available on port `8080`. Example: `http://localhost:8080`.
+
+### API Endpoints
+
+The backend provides the following main REST API endpoints under the `/api` base path:
+
+-   `GET /api/config`: Retrieves the current application configuration.
+-   `POST /api/config`: Saves the application configuration.
+-   `GET /api/dashboard`: Fetches analysis results (missing PRs by cluster). Accepts query parameters for date filtering (`dateFrom`, `dateTo`) and cluster name (`filterClusterName`).
+-   `GET /api/check_pr`: Retrieves detailed cherry-pick status for a specific PR number. Requires `prNumber` query parameter.
+-   `POST /api/clear_cache`: Clears the backend's in-memory cache for GitHub API data.
+
+## Frontend (Angular)
+
+### Purpose/Features
+
+-   Provides a user-friendly web interface to configure the application.
+-   Displays a dashboard of PRs missing from their target clusters.
+-   Allows users to check the cherry-pick status of individual PRs.
+-   Communicates with the Java backend via REST API calls.
+
+### Prerequisites
+
+-   Node.js (v18.19.0 or v20.11.0+ recommended, as Angular 17+ is used)
+-   Angular CLI (Version 17 was used for development, installed via `npx`)
+
+### Setup Instructions
+
+1.  **Navigate to the Frontend Directory:**
+    ```bash
+    cd pr-cluster-checker-angular
+    ```
+
+2.  **Install Dependencies:**
+    If `node_modules` directory is not present or to ensure all dependencies are up-to-date:
+    ```bash
+    npm install
+    ```
+
+3.  **Running the Frontend Development Server:**
+    ```bash
+    npx ng serve
+    ```
+    This will start a development server, typically on `http://localhost:4200/`.
+
+4.  **Accessing the Application:**
+    Open `http://localhost:4200` in your web browser. The application should load, and you can navigate between pages.
+
+**Important:** The Java backend API must be running (typically on `http://localhost:8080`) for the Angular frontend to fetch and display data correctly.
+
+## Core Functionality/Usage
+
+The application flow is similar to the original Python version, but through the new Angular UI:
+
+1.  **Configuration Page (`/config`):**
+    -   Set the Git Repository URL, Main Release Branch.
+    -   Choose GitHub authentication method (PAT or Username/Password). Credentials are read from backend environment variables.
+    -   Define target clusters with their names and corresponding release branch names.
+    -   Optionally set a default date range for PR analysis.
+    -   Save the configuration.
+
+2.  **Dashboard Page (`/dashboard`):**
+    -   Displays PRs merged into the main release branch but found to be missing from one or more of their target cluster release branches.
+    -   Allows filtering by date range and specific cluster name.
+
+3.  **PR Checker Page (`/check-pr`):**
+    -   Input a PR number to get its detailed status:
+        -   Merge status to the main branch.
+        -   Merge commit SHA.
+        -   Clusters it was marked for (from PR body).
+        -   Cherry-pick status for all configured clusters.
 
 ## PR Body Template Expectation
 
 For the tool to correctly identify which clusters a PR impacts, the PR body (description) **must** contain a section like the following:
 
 ```markdown
-### Cluster Impact
-Please select impacted clusters:
-- [x] SMI
-- [ ] SMC
-- [x] SMN4
+```cluster
+cluster-a
+cluster-b
 ```
-The tool parses this section to determine the intended target clusters for a PR. Cluster names used here should match the cluster names defined in the tool's configuration page.
+Alternatively, a single-line format is also supported:
+`cluster: cluster-a cluster-b`
 
-## Setup Instructions
+Cluster names used here should match the cluster names defined in the tool's configuration page (case-insensitive matching is attempted for "cluster:" line, but exact match for ```cluster``` block is better).
 
-### Prerequisites
-- Python 3.8+
-- Git
+## Caching
 
-### Installation
-1.  **Clone the repository (if applicable) or ensure project files are present.**
-    ```bash
-    # git clone <repository_url>
-    # cd pr-cluster-checker
-    ```
-
-2.  **Create a Python virtual environment:**
-    (The command involves using Python's `venv` module)
-    ```bash
-    # Example:
-    # python -m venv [name_for_your_environment_directory]
-    # e.g., python -m venv .myenv
-    ```
-
-3.  **Activate the virtual environment:**
-    -   On macOS and Linux (replace `.myenv` if you chose a different name):
-        ```bash
-        source .myenv/bin/activate
-        ```
-    -   On Windows:
-        ```bash
-        .myenv\Scripts\activate
-        ```
-
-4.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-5.  **Create a `.env` file for GitHub credentials:**
-    In the root directory of the project, create a file named `.env`. This file will store your GitHub credentials. **This file is ignored by Git via `.gitignore` and should NOT be committed.**
-
-    Choose **one** of the following authentication methods:
-
-    -   **Using a Personal Access Token (PAT):**
-        Create a PAT from your GitHub account settings with the necessary scopes (e.g., `repo` for accessing repository data, including private ones).
-        Add the following line to your `.env` file:
-        ```
-        GITHUB_TOKEN=your_github_personal_access_token_here
-        ```
-
-    -   **Using Username/Password (Less Recommended):**
-        If you choose to use your GitHub username and password (not recommended for programmatic access, especially if you have 2FA enabled, as PATs are more secure and manageable), add these lines to your `.env` file:
-        ```
-        GITHUB_USERNAME=your_github_username
-        GITHUB_PASSWORD=your_github_password_or_pat_if_username_is_set
-        ```
-        *Note: If you have 2FA enabled, your password will likely not work directly. You might need to use a PAT as the password in this case as well, or GitHub might block the login.*
-
-## Running the Application
-
-1.  **Ensure your virtual environment is activated.**
-2.  **Run the Flask application:**
-    ```bash
-    python run.py
-    ```
-    This will typically start the development server on `http://127.0.0.1:5001` (or another port if `run.py` is configured differently).
-
-3.  **Access the application in your web browser:**
-    Open `http://127.0.0.1:5001` (or the relevant address shown in your terminal). You will be redirected to the Dashboard, or to the Configuration page if the app hasn't been configured yet.
-
-## Usage
-
-1.  **Configuration (`/config`):**
-    -   Navigate to the `/config` page first.
-    -   **Git Repository URL**: Enter the full HTTPS or SSH URL of the GitHub repository you want to monitor (e.g., `https://github.com/owner/repository.git`).
-    -   **Authentication Method**: Select "Personal Access Token" or "Username/Password". Ensure your `.env` file is set up accordingly. If using "Username/Password", you can enter your username in the form for reference (it's saved in `config.json`), but the password always comes from `.env`.
-    -   **Main Release Branch Name**: The primary branch from which PRs are merged and subsequently cherry-picked (e.g., `main`, `develop`, `release/1.2.x`).
-    -   **Cluster Branches**:
-        -   Click "Add Cluster" to add entries.
-        -   For each entry:
-            -   **Cluster Name**: A short, unique identifier for the cluster (e.g., `smi`, `prod-us-east`, `dev-gcp`). This name **must match** the names used in the PR body's "Cluster Impact" section.
-            -   **Corresponding Release Branch**: The full name of the Git branch associated with this cluster where cherry-picks are expected (e.g., `releases/prod-us-east-v1.2`, `hotfix/smi-integration`).
-    -   **Date Range for PRs**:
-        -   **From Date / To Date**: Define the window for fetching PRs that were merged into the main release branch. Only PRs merged within this range will be analyzed. Leave blank if no specific date filtering from the main configuration is desired (though the Dashboard also offers its own date filters).
-    -   Click "Save Configuration".
-
-2.  **Dashboard (`/dashboard`):**
-    -   This page shows PRs that are considered "missing". A PR is missing if:
-        -   It was merged into the main release branch (within the active date filter).
-        -   Its body was marked for a specific cluster.
-        -   It has not been found in that cluster's corresponding release branch.
-    -   Use the filters at the top to narrow down by date range or a specific cluster name.
-
-3.  **PR Checker (`/check_pr`):**
-    -   Enter a PR number from your repository and click "Check PR".
-    -   The page will display:
-        -   The PR's title and link.
-        -   Whether it was found as merged into your configured main release branch.
-        -   Its merge commit SHA on the main branch (if applicable).
-        -   The list of clusters it was marked for in its body.
-        -   A table showing each cluster you've configured, its release branch, and whether the PR's main branch merge commit is present in that cluster branch's history.
+-   **Backend**: The Java backend uses an in-memory cache for GitHub API responses (PR lists, commit data, branch comparisons) to improve performance and reduce API rate limit consumption.
+-   **Frontend**: A "Clear Backend Cache & Refresh" button is available on the Dashboard page to clear this server-side cache and reload data.
 
 ## Testing Environment & Mock Repository
 
-For thorough end-to-end testing, especially of the GitHub interaction logic, it's highly recommended to set up a mock/sample GitHub repository with the following structure:
-
--   A main release branch (e.g., `main`).
--   Several cluster-specific release branches (e.g., `release/smi`, `release/smc`).
--   A `.github/pull_request_template.md` file in the mock repository containing the "Cluster Impact" section format described above.
--   Several sample PRs:
-    -   Some merged into the main branch.
-    -   Some of these merged PRs should be marked for certain clusters.
-    -   Some of these marked PRs should then be cherry-picked (or merged) into their respective cluster branches.
-    -   Some marked PRs should be deliberately *not* cherry-picked to some of their target cluster branches to test the "missing" detection.
-    -   Some PRs can be left open or merged to other feature branches not relevant to the tool's main flow.
-
-Configure the `pr-cluster-checker` tool to point to this mock repository to safely test its functionality.
+For thorough end-to-end testing, setting up a mock GitHub repository is recommended, similar to the original Python version's advice. This allows safe testing of PR fetching, branch comparison, and cherry-pick detection logic. Configure the application to point to this mock repository.
 
 ## Security Note
-- Always store your GitHub Personal Access Token or credentials in the `.env` file.
-- Do **not** commit the `.env` file to your Git repository. The provided `.gitignore` should already prevent this.
-- The configuration file (`data/config.json`) does **not** store sensitive credentials like tokens or passwords. It only stores the chosen authentication method and, optionally, the username for reference if using username/password auth.
+
+-   Always prefer using GitHub Personal Access Tokens (PATs) over username/password for authentication.
+-   Store your GitHub PAT or credentials as environment variables for the backend application.
+-   The configuration saved by the application (`data/config.json` on the backend) does **not** store sensitive credentials like tokens or passwords. It only stores the chosen authentication method and, optionally, the username (if using username/password auth).

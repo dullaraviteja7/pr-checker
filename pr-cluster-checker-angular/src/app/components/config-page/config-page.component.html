@@ -1,0 +1,76 @@
+<div class="container">
+  <h2>Configuration</h2>
+  <form #configForm="ngForm" (ngSubmit)="saveConfiguration()">
+
+    <div class="form-group">
+      <label for="gitRepoUrl">Git Repository URL:</label>
+      <input type="text" id="gitRepoUrl" name="gitRepoUrl" class="form-control"
+             [(ngModel)]="config.gitRepoUrl" placeholder="e.g., https://github.com/owner/repo.git">
+    </div>
+
+    <div class="form-group">
+      <label for="mainReleaseBranch">Main Release Branch:</label>
+      <input type="text" id="mainReleaseBranch" name="mainReleaseBranch" class="form-control"
+             [(ngModel)]="config.mainReleaseBranch" placeholder="e.g., main or master">
+    </div>
+
+    <fieldset>
+      <legend>Authentication</legend>
+      <div class="form-group">
+        <label for="authMethod">Auth Method:</label>
+        <select id="authMethod" name="authMethod" class="form-control"
+                [(ngModel)]="config.authConfig.method">
+          <option [ngValue]="null">None</option>
+          <option value="pat">Personal Access Token (PAT)</option>
+          <option value="userpass">Username/Password</option>
+        </select>
+      </div>
+      <div *ngIf="config.authConfig.method === 'userpass'" class="form-group">
+        <label for="githubUsername">GitHub Username:</label>
+        <input type="text" id="githubUsername" name="githubUsername" class="form-control"
+               [(ngModel)]="config.authConfig.username">
+        <small class="form-text text-muted">Password should be set via GITHUB_PASSWORD environment variable on the backend.</small>
+      </div>
+       <div *ngIf="config.authConfig.method === 'pat'">
+        <small class="form-text text-muted">Token should be set via GITHUB_TOKEN environment variable on the backend.</small>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Date Range (Optional)</legend>
+      <div class="form-group">
+        <label for="dateRangeFrom">PRs Merged From:</label>
+        <input type="date" id="dateRangeFrom" name="dateRangeFrom" class="form-control"
+               [(ngModel)]="dateRangeFromString">
+      </div>
+      <div class="form-group">
+        <label for="dateRangeTo">PRs Merged To:</label>
+        <input type="date" id="dateRangeTo" name="dateRangeTo" class="form-control"
+               [(ngModel)]="dateRangeToString">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Cluster Configurations</legend>
+      <div *ngFor="let cluster of config.clusters; let i = index; trackBy: trackByFn" class="cluster-group">
+        <h4>Cluster {{ i + 1 }}</h4>
+        <div class="form-group">
+          <label for="clusterName{{i}}">Cluster Name:</label>
+          <input type="text" id="clusterName{{i}}" name="clusterName{{i}}" class="form-control"
+                 [(ngModel)]="cluster.name" placeholder="e.g., staging-us-west">
+        </div>
+        <div class="form-group">
+          <label for="clusterBranch{{i}}">Release Branch:</label>
+          <input type="text" id="clusterBranch{{i}}" name="clusterBranch{{i}}" class="form-control"
+                 [(ngModel)]="cluster.releaseBranch" placeholder="e.g., release/staging-us-west">
+        </div>
+        <button type="button" (click)="removeCluster(i)" class="btn btn-danger btn-sm">Remove Cluster</button>
+      </div>
+      <button type="button" (click)="addCluster()" class="btn btn-secondary">Add Cluster</button>
+    </fieldset>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="!configForm.form.valid">Save Configuration</button>
+    </div>
+  </form>
+</div>

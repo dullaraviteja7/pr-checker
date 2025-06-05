@@ -1,0 +1,67 @@
+<div class="container">
+  <h2>Dashboard - Missing PRs by Cluster</h2>
+
+  <div class="filters card">
+    <div class="card-body">
+      <h5 class="card-title">Filters</h5>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="dateFrom">From Date:</label>
+          <input type="date" id="dateFrom" name="dateFrom" class="form-control" [(ngModel)]="filterDateFrom">
+        </div>
+        <div class="form-group col-md-4">
+          <label for="dateTo">To Date:</label>
+          <input type="date" id="dateTo" name="dateTo" class="form-control" [(ngModel)]="filterDateTo">
+        </div>
+        <div class="form-group col-md-4">
+          <label for="clusterFilter">Cluster:</label>
+          <select id="clusterFilter" name="clusterFilter" class="form-control" [(ngModel)]="selectedClusterFilter">
+            <option value="">All Clusters</option>
+            <option *ngFor="let cluster of configuredClusters" [value]="cluster.name">{{ cluster.name }}</option>
+          </select>
+        </div>
+      </div>
+      <button (click)="onFilterChange()" class="btn btn-primary mr-2">Apply Filters</button>
+      <button (click)="onClearCache()" class="btn btn-warning">Clear Backend Cache & Refresh</button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-indicator">
+    <p>Loading dashboard data...</p>
+    <!-- Consider adding a spinner icon here -->
+  </div>
+
+  <div *ngIf="errorMessage" class="alert alert-danger mt-3">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="!isLoading && analysisResult && getObjectKeys(analysisResult.missingPrsByCluster).length === 0 && !errorMessage" class="alert alert-info mt-3">
+    No missing PRs found for the selected criteria, or no clusters configured/matched.
+  </div>
+
+  <div *ngIf="!isLoading && analysisResult && getObjectKeys(analysisResult.missingPrsByCluster).length > 0" class="results mt-4">
+    <div *ngFor="let clusterName of getObjectKeys(analysisResult.missingPrsByCluster)" class="cluster-section card mb-3">
+      <div class="card-header">
+        <h3>{{ clusterName }}</h3>
+      </div>
+      <div class="card-body">
+        <ul *ngIf="analysisResult && analysisResult.missingPrsByCluster && analysisResult.missingPrsByCluster[clusterName] && analysisResult.missingPrsByCluster[clusterName].length > 0; else noMissingPrs" class="list-group list-group-flush">
+          <li *ngFor="let pr of analysisResult.missingPrsByCluster[clusterName]" class="list-group-item">
+            <div>
+              <strong>PR #{{ pr.number }}:</strong>
+              <a [href]="pr.htmlUrl" target="_blank">{{ pr.title }}</a>
+            </div>
+            <div><small>SHA: {{ pr.mergeCommitSha }}</small></div>
+            <div><small>Merged At: {{ pr.mergedAt | date:'yyyy-MM-dd HH:mm:ss' }}</small></div>
+            <div>
+              <small>Marked for: {{ pr.targetClusters.join(', ') || 'N/A' }}</small>
+            </div>
+          </li>
+        </ul>
+        <ng-template #noMissingPrs>
+          <p class="text-muted">No PRs reported missing for this cluster with the current filters.</p>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</div>
